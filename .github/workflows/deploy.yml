@@ -1,4 +1,4 @@
-name: CD Pipeline
+name: cd pipeline
 
 on:
   push:
@@ -7,45 +7,50 @@ on:
 
 jobs:
   deploy:
-    name: Deploy
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
         with:
-          fetch-depth: 1 # Only fetch latest commit, speeds up checkout
+          host: ${{ secrets.EC2_SSH_HOST }}
+          username: ${{ secrets.EC2_SSH_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            # Navigate to the project directory
+            cd /home/ubuntu/
 
-      - name: Setup SSH and Deploy
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        run: |
-          # Start SSH agent
-          eval $(ssh-agent -s)
+            # Clone the repository only if it doesn't exist
+            if [ ! -d "fastapi-book-project" ]; then
+              git clone https://github.com/alibaba0010/fastapi-book-project.git
+            fi
 
-          # Add private key to SSH agent
-          echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+            # Enter the project directory
+            cd fastapi-book-project
 
-          # SSH into EC2 instance and deploy
-          ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=no ubuntu@3.82.129.106 << 'EOF'
-            set -e  # Stop execution if any command fails
+            # Pull latest changes
+            git pull origin main
 
-            echo "🚀 Navigating to project directory..."
-            cd /home/ubuntu/hngx-stage2-fastapi-project || exit 1
+            # Ensure Docker and Docker Compose are installed (Run once)
+            if ! command -v docker &> /dev/null; then
+              sudo apt-get update -y
+              sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+              sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+              sudo apt-get update -y
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+              sudo usermod -aG docker ${{ secrets.EC2_SSH_USERNAME }}
+            fi
 
-            echo "🔄 Fetching latest code..."
-            git fetch --all
-            git reset --hard origin/main  # Ensures a clean state
-            git pull origin main --rebase --autostash  # Prevents merge conflicts
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
 
-            echo "📦 Activating virtual environment..."
-            source venv/bin/activate
+            # Stop and remove previous containers before redeploying
+            docker-compose down || true
 
-            echo "⚡ Installing only updated dependencies..."
-            pip install --no-cache-dir --upgrade -r requirements.txt --timeout=60
-
-            echo "🔄 Restarting FastAPI service..."
-            sudo systemctl restart fastapi
-
-            echo "✅ Deployment completed successfully!"
-          EOF
+            # Build and restart containers
+            docker-compose up -d --build
