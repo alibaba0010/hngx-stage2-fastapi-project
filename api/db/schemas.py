@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import OrderedDict
+
 from pydantic import BaseModel
+
 
 class Genre(str, Enum):
     """Book genres."""
@@ -12,17 +14,20 @@ class Genre(str, Enum):
     ROMANCE = "Romance"
     THRILLER = "Thriller"
 
+
 class Book(BaseModel):
     """Book schema
 
     Args:
         BaseModel (BaseModel): Pydantic base model.
     """
+
     id: int
     title: str
     author: str
     publication_year: int
     genre: Genre
+
 
 class InMemoryDB:
     def __init__(self):
@@ -35,7 +40,7 @@ class InMemoryDB:
             OrderedDict[int, Book]: Ordered dictionary of books.
         """
         return self.books
-    
+
     def add_book(self, book: Book) -> Book:
         """Adds book to database.
 
@@ -57,7 +62,7 @@ class InMemoryDB:
             Book: Book.
         """
         return self.books.get(book_id)
-    
+
     def update_book(self, book_id: int, data: Book) -> Book:
         """Updates a specific book in database.
 
@@ -71,7 +76,7 @@ class InMemoryDB:
         self.books.update({book_id: data})
         return self.books.get(book_id)
 
-    def delete_book(self, book_id: int) -> None: 
+    def delete_book(self, book_id: int) -> None:
         """Deletes a specific book from database.
 
         Args:
@@ -79,4 +84,3 @@ class InMemoryDB:
         """
         if book_id in self.books:
             del self.books[book_id]
-            

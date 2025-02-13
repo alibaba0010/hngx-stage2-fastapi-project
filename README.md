@@ -43,6 +43,10 @@ fastapi-book-project/
 - Pydantic
 - pytest
 - uvicorn
+- Docker
+- GitHub Actions
+- AWS EC2
+- Nginx
 
 ## Installation
 
@@ -66,12 +70,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Running the Application
+## Running the Application Locally
 
 1. Start the server:
 
 ```bash
-uvicorn main:app
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 2. Access the API documentation:
@@ -79,55 +83,135 @@ uvicorn main:app
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## API Endpoints
+## Deployment Instructions
 
-### Books
+### **1. Deploying to AWS EC2**
 
-- `GET /api/v1/books/` - Get all books
-- `GET /api/v1/books/{book_id}` - Get a specific book
-- `POST /api/v1/books/` - Create a new book
-- `PUT /api/v1/books/{book_id}` - Update a book
-- `DELETE /api/v1/books/{book_id}` - Delete a book
+#### **Step 1: Launch an EC2 Instance**
 
-### Health Check
+- Select **Ubuntu 22.04 LTS** as the OS.
+- Open port **22 (SSH)**, **80 (HTTP)**, and **443 (HTTPS)** in the security group.
+- Connect to the instance via SSH:
 
-- `GET /healthcheck` - Check API status
+  ```sh
+  ssh -i your-key.pem ubuntu@your-ec2-ip
+  ```
 
-## Book Schema
+#### **Step 2: Install Dependencies on EC2**
 
-```json
-{
-  "id": 1,
-  "title": "Book Title",
-  "author": "Author Name",
-  "publication_year": 2024,
-  "genre": "Fantasy"
-}
+```sh
+sudo apt update && sudo apt install -y python3-pip python3-venv git nginx
 ```
 
-Available genres:
+#### **Step 3: Clone the Project and Set Up the Environment**
 
-- Science Fiction
-- Fantasy
-- Horror
-- Mystery
-- Romance
-- Thriller
+```sh
+git clone https://github.com/hng12-devbotops/fastapi-book-project.git
+cd fastapi-book-project
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+#### **Step 4: Run the Application with Uvicorn**
+
+```sh
+uvicorn main:app --host 0.0.0.0 --port 8000 &
+```
+
+### **2. Configure Nginx as a Reverse Proxy**
+
+1. Create an Nginx config file:
+
+   ```sh
+   sudo nano /etc/nginx/sites-available/fastapi
+   ```
+
+2. Add the following configuration:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name your-ec2-ip;
+
+       location / {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       }
+   }
+   ```
+
+3. Enable the Nginx configuration and restart:
+   ```sh
+   sudo ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled/
+   sudo systemctl restart nginx
+   ```
+
+### **3. Deploying via GitHub Actions**
+
+#### **Step 1: Add Your EC2 Private Key to GitHub Secrets**
+
+1. Run the following command to get your private key:
+   ```sh
+   cat ~/.ssh/id_rsa
+   ```
+2. Copy the output and add it as a **GitHub Secret** under `EC2_SSH_PRIVATE_KEY`.
+
+#### **Step 2: Set Up GitHub Actions Workflow**
+
+Create `.github/workflows/deploy.yml` with the following content:
+
+```yaml
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH and Deploy
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@your-ec2-ip << 'EOF'
+            cd fastapi-book-project
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart fastapi
+          EOF
+```
+
+### **4. Verifying Deployment**
+
+Once deployed, test the API using:
+
+```sh
+curl -X GET http://your-ec2-ip/api/v1/books/
+```
+
+If everything is set up correctly, your API should be running at:
+
+```sh
+http://your-ec2-ip/docs
+```
 
 ## Running Tests
 
 ```bash
 pytest
 ```
-
-## Error Handling
-
-The API includes proper error handling for:
-
-- Non-existent books
-- Invalid book IDs
-- Invalid genre types
-- Malformed requests
 
 ## Contributing
 

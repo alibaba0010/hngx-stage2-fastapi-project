@@ -1,0 +1,28 @@
+name: cd Pipeline
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH and Deploy
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 400 private_key.pem
+          ssh -o ConnectTimeout=60 -o StrictHostKeyChecking=no -i private_key.pem ubuntu@3.82.129.106 << 'EOF'
+            cd /home/ubuntu/hngx-stage2-fastapi-project
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart fastapi
+          EOF
