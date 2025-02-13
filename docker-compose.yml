@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   app:
-    build: .
+    image: alibaba0010/fastapi-app:latest
     container_name: fastapi-app
     ports:
       - "8000:8000"
