@@ -24,11 +24,11 @@ jobs:
 
             # Clone the repository only if it doesn't exist
             if [ ! -d "fastapi-book-project" ]; then
-              git clone https://github.com/alibaba0010/fastapi-book-project.git
+              git clone https://github.com/alibaba0010/hngx-stage2-fastapi-project.git
             fi
 
             # Enter the project directory
-            cd fastapi-book-project
+            cd hngx-stage2-fastapi-project
 
             # Pull latest changes
             git pull origin main
