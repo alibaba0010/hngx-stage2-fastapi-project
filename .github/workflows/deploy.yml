@@ -27,6 +27,16 @@ jobs:
           username: ${{ secrets.EC2_SSH_USERNAME }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
+            cd /home/ubuntu/
+            # Clone repository if it does not exist
+            if [ ! -d "hngx-stage2-fastapi-project" ]; then
+              git clone https://github.com/alibaba0010/hngx-stage2-fastapi-project.git
+            fi
+            # Change directory into the project and update it
+            cd hngx-stage2-fastapi-project
+            git pull origin main
+            # Pull the latest Docker image from Docker Hub
             docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+            # Shut down any existing containers and start the updated ones
             docker-compose down || true
             docker-compose up -d
