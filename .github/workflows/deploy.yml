@@ -29,4 +29,4 @@ jobs:
           script: |
             docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
             docker-compose down || true
-            docker-compose up -d --build
+            docker-compose up -d
