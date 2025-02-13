@@ -8,12 +8,13 @@ on:
 jobs:
   deploy:
     name: Deploy
-
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1 # Only fetch latest commit, speeds up checkout
 
       - name: Setup SSH and Deploy
         env:
@@ -26,22 +27,22 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
 
           # SSH into EC2 instance and deploy
-          ssh -o ConnectTimeout=60 -o StrictHostKeyChecking=no ubuntu@3.82.129.106 << 'EOF'
+          ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=no ubuntu@3.82.129.106 << 'EOF'
             set -e  # Stop execution if any command fails
-            
+
             echo "🚀 Navigating to project directory..."
             cd /home/ubuntu/hngx-stage2-fastapi-project || exit 1
 
-            echo "🔄 Resetting repository..."
+            echo "🔄 Fetching latest code..."
             git fetch --all
             git reset --hard origin/main  # Ensures a clean state
-            git pull origin main
+            git pull origin main --rebase --autostash  # Prevents merge conflicts
 
             echo "📦 Activating virtual environment..."
             source venv/bin/activate
 
-            echo "⚡ Installing dependencies with caching..."
-            pip install --no-cache-dir --upgrade -r requirements.txt
+            echo "⚡ Installing only updated dependencies..."
+            pip install --no-cache-dir --upgrade -r requirements.txt --timeout=60
 
             echo "🔄 Restarting FastAPI service..."
             sudo systemctl restart fastapi
