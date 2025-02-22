@@ -34,5 +34,5 @@ jobs:
             cd hngx-stage2-fastapi-project
             git pull origin main
             docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-            docker-compose down || true
-            docker-compose up -d
+            docker compose down || true
+            docker compose up -d
