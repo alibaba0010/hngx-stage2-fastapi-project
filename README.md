@@ -1,3 +1,8 @@
+Below is an updated version of your README that reflects the current modifications to the deployment process, which now uses Docker Hub and GitHub Actions for automatic updates instead of manual AWS EC2 deployment.
+
+---
+
+```markdown
 # FastAPI Book Management API
 
 ## Overview
@@ -14,27 +19,30 @@ This project is a RESTful API built with FastAPI for managing a book collection.
 - 🔒 CORS middleware enabled
 
 ## Project Structure
-
 ```
+
 fastapi-book-project/
 ├── api/
-│   ├── db/
-│   │   ├── __init__.py
-│   │   └── schemas.py      # Data models and in-memory database
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   └── books.py        # Book route handlers
-│   └── router.py           # API router configuration
+│ ├── db/
+│ │ ├── **init**.py
+│ │ └── schemas.py # Data models and in-memory database
+│ ├── routes/
+│ │ ├── **init**.py
+│ │ └── books.py # Book route handlers
+│ └── router.py # API router configuration
 ├── core/
-│   ├── __init__.py
-│   └── config.py           # Application settings
+│ ├── **init**.py
+│ └── config.py # Application settings
 ├── tests/
-│   ├── __init__.py
-│   └── test_books.py       # API endpoint tests
-├── main.py                 # Application entry point
-├── requirements.txt        # Project dependencies
+│ ├── **init**.py
+│ └── test_books.py # API endpoint tests
+├── main.py # Application entry point
+├── Dockerfile # Docker build instructions
+├── docker-compose.yml # Docker Compose configuration
+├── requirements.txt # Project dependencies
 └── README.md
-```
+
+````
 
 ## Technologies Used
 
@@ -45,126 +53,73 @@ fastapi-book-project/
 - uvicorn
 - Docker
 - GitHub Actions
-- AWS EC2
 - Nginx
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 
-```bash
-git clone https://github.com/hng12-devbotops/fastapi-book-project.git
-cd fastapi-book-project
-```
+   ```bash
+   git clone https://github.com/yourusername/fastapi-book-project.git
+   cd fastapi-book-project
+````
 
-2. Create a virtual environment:
+2. **Create a virtual environment:**
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-3. Install dependencies:
+3. **Install dependencies:**
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Running the Application Locally
 
-1. Start the server:
+1. **Start the server:**
 
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
 
-2. Access the API documentation:
+2. **Access the API documentation:**
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+   - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ## Deployment Instructions
 
-### **1. Deploying to AWS EC2**
+This project now uses GitHub Actions to build, push, and deploy your Docker image automatically. Every push to the main branch triggers the workflow, ensuring that any changes (for example, new endpoints or modifications) are automatically reflected on your hosted application.
 
-#### **Step 1: Launch an EC2 Instance**
+### 1. GitHub Actions & Docker Hub Setup
 
-- Select **Ubuntu 22.04 LTS** as the OS.
-- Open port **22 (SSH)**, **80 (HTTP)**, and **443 (HTTPS)** in the security group.
-- Connect to the instance via SSH:
+- **GitHub Secrets:**  
+  In your repository settings, add the following secrets:
+  - `DOCKER_USERNAME`: Your Docker Hub username.
+  - `DOCKER_PASSWORD`: Your Docker Hub password.
+  - `EC2_SERVER_HOST`: The IPv4 address of the AWS EC2 instance.
+  - `EC2_SERVER_USERNAME`: The username of the AWS EC2 instance (ubuntu).
+  - `SERVER_SSH_KEY`: The SSH private key for your AWS EC2 instance server.
 
-  ```sh
-  ssh -i your-key.pem ubuntu@your-ec2-ip
-  ```
+### 2. Workflow
 
-#### **Step 2: Install Dependencies on EC2**
+The provided `.github/workflows/deploy.yml` file performs these steps:
 
-```sh
-sudo apt update && sudo apt install -y python3-pip python3-venv git nginx
-```
+- Checks out the repository.
+- Logs in to Docker Hub.
+- Builds a Docker image from your Dockerfile and pushes it to Docker Hub.
+- Connects to the remote server via SSH.
+- Clones (or updates) the repository on the remote host.
+- Pulls the latest Docker image from Docker Hub.
+- Restarts the running containers using Docker Compose.
 
-#### **Step 3: Clone the Project and Set Up the Environment**
-
-```sh
-git clone https://github.com/hng12-devbotops/fastapi-book-project.git
-cd fastapi-book-project
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-#### **Step 4: Run the Application with Uvicorn**
-
-```sh
-uvicorn main:app --host 0.0.0.0 --port 8000 &
-```
-
-### **2. Configure Nginx as a Reverse Proxy**
-
-1. Create an Nginx config file:
-
-   ```sh
-   sudo nano /etc/nginx/sites-available/fastapi
-   ```
-
-2. Add the following configuration:
-
-   ```nginx
-   server {
-       listen 80;
-       server_name your-ec2-ip;
-
-       location / {
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       }
-   }
-   ```
-
-3. Enable the Nginx configuration and restart:
-   ```sh
-   sudo ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled/
-   sudo systemctl restart nginx
-   ```
-
-### **3. Deploying via GitHub Actions**
-
-#### **Step 1: Add Your EC2 Private Key to GitHub Secrets**
-
-1. Run the following command to get your private key:
-   ```sh
-   cat ~/.ssh/id_rsa
-   ```
-2. Copy the output and add it as a **GitHub Secret** under `EC2_SSH_PRIVATE_KEY`.
-
-#### **Step 2: Set Up GitHub Actions Workflow**
-
-Create `.github/workflows/deploy.yml` with the following content:
+Here is the sample workflow file:
 
 ```yaml
-name: Deploy to EC2
+name: cd pipeline
 
 on:
   push:
@@ -175,39 +130,74 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup SSH and Deploy
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build and push Docker image
         run: |
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@your-ec2-ip << 'EOF'
-            cd fastapi-book-project
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+
+      - name: Deploy on remote server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/
+            if [ ! -d "hngx-stage2-fastapi-project" ]; then
+              git clone https://github.com/yourusername/fastapi-book-project.git
+            fi
+            cd hngx-stage2-fastapi-project
             git pull origin main
-            source venv/bin/activate
-            pip install -r requirements.txt
-            sudo systemctl restart fastapi
-          EOF
+            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+            docker-compose down || true
+            docker-compose up -d
 ```
 
-### **4. Verifying Deployment**
+### 3. Updated Docker Compose
 
-Once deployed, test the API using:
+The `docker-compose.yml` file is now configured to use the pre-built Docker image from Docker Hub instead of building the image locally:
 
-```sh
-curl -X GET http://your-ec2-ip/api/v1/books/
+```yaml
+version: "3.8"
+services:
+  app:
+    image: your_docker_username/fastapi-app:latest
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+
+  nginx:
+    image: nginx:latest
+    container_name: fastapi-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - app
 ```
 
-If everything is set up correctly, your API should be running at:
+> Replace `your_docker_username` with your actual Docker Hub username.
 
-```sh
-http://your-ec2-ip/docs
-```
+### 4. Automatic Deployment
+
+Each push to the main branch will:
+
+- Trigger the GitHub Actions workflow.
+- Build and push a new Docker image to Docker Hub.
+- Update your remote server by pulling the latest repository changes and Docker image, then restarting the containers.
+
+This ensures that any modifications (such as adding new endpoints) are automatically deployed to your host.
 
 ## Running Tests
+
+Run the test suite using:
 
 ```bash
 pytest
@@ -215,15 +205,15 @@ pytest
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
