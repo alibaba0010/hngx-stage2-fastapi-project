@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
@@ -27,6 +27,22 @@ jobs:
           username: ${{ secrets.EC2_SSH_USERNAME }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
+            # Check if docker is installed; if not, install it.
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "Docker not found. Installing Docker..."
+              # installing dependencies
+              sudo apt-get update
+              sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+              
+              # Add Docker's official GPG key
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+              sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+              # Install Docker CE
+              sudo apt-get update
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+            fi
+
             cd /home/ubuntu/
             if [ ! -d "hngx-stage2-fastapi-project" ]; then
               git clone https://github.com/alibaba0010/hngx-stage2-fastapi-project.git
@@ -34,5 +50,5 @@ jobs:
             cd hngx-stage2-fastapi-project
             git pull origin main
             docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-            docker compose down || true
-            docker compose up -d
+            docker-compose down || true
+            docker-compose up -d
